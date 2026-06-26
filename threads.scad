@@ -77,7 +77,7 @@
 
 
 // ----------------------------------------------------------------------------
-function segments (diameter) = min (150, max (ceil (diameter*6), 25));
+function segments (diameter,tolerance) = max (18,ceil(360/(acos((diameter-tolerance)/diameter))));
 
 
 // ----------------------------------------------------------------------------
@@ -111,14 +111,15 @@ function segments (diameter) = min (150, max (ceil (diameter*6), 25));
 //               Default: false (draw threads).
 module metric_thread (diameter=8, pitch=1, length=1, internal=false, n_starts=1,
                       thread_size=-1, groove=false, square=false, rectangle=0,
-                      angle=30, taper=0, leadin=0, leadfac=1.0, test=false)
+                      angle=30, taper=0, leadin=0, leadfac=1.0, test=false, tolerance=0)
 {
+   tol = tolerance == 0 ? pitch/5 : tolerance;
    // thread_size: size of thread "V" different than travel per turn (pitch).
    // Default: same as pitch.
    local_thread_size = thread_size == -1 ? pitch : thread_size;
    local_rectangle = rectangle ? rectangle : 1;
 
-   n_segments = segments (diameter);
+   n_segments = segments (diameter,tol);
    h = (test && ! internal) ? 0 : (square || rectangle) ? local_thread_size*local_rectangle/2 : local_thread_size / (2 * tan(angle));
 
    h_fac1 = (square || rectangle) ? 0.90 : 0.625;
@@ -134,7 +135,7 @@ module metric_thread (diameter=8, pitch=1, length=1, internal=false, n_starts=1,
             if (! test) {
                metric_thread_turns (diameter, pitch, length, internal, n_starts,
                                     local_thread_size, groove, square, rectangle, angle,
-                                    taper);
+                                    taper,tol);
             }
          }
 
@@ -158,7 +159,7 @@ module metric_thread (diameter=8, pitch=1, length=1, internal=false, n_starts=1,
                if (! test) {
                   metric_thread_turns (diameter, pitch, length, internal, n_starts,
                                        local_thread_size, groove, square, rectangle,
-                                       angle, taper);
+                                       angle, taper,tol);
                }
             }
          }
@@ -241,8 +242,9 @@ module metric_thread (diameter=8, pitch=1, length=1, internal=false, n_starts=1,
 module english_thread (diameter=0.25, threads_per_inch=20, length=1,
                       internal=false, n_starts=1, thread_size=-1, groove=false,
                       square=false, rectangle=0, angle=30, taper=0, leadin=0,
-                      leadfac=1.0, test=false)
+                      leadfac=1.0, test=false,tolerance=0)
 {
+    tol = tolerance == 0 ? 0.2/(threads_per_inch) : tolerance;
    // Convert to mm.
    mm_diameter = diameter*25.4;
    mm_pitch = (1.0/threads_per_inch)*25.4;
@@ -253,13 +255,13 @@ module english_thread (diameter=0.25, threads_per_inch=20, length=1,
    echo (str ("mm_length: ", mm_length));
    metric_thread (mm_diameter, mm_pitch, mm_length, internal, n_starts,
                   thread_size, groove, square, rectangle, angle, taper, leadin,
-                  leadfac, test);
+                  leadfac, test,tol*25.4);
 }
 
 // ----------------------------------------------------------------------------
 module metric_thread_turns (diameter, pitch, length, internal, n_starts,
                             thread_size, groove, square, rectangle, angle,
-                            taper)
+                            taper,tolerance)
 {
    // Number of turns needed.
    n_turns = floor (length/pitch);
@@ -273,10 +275,10 @@ module metric_thread_turns (diameter, pitch, length, internal, n_starts,
             translate ([0, 0, i*pitch]) {
                metric_thread_turn (diameter, pitch, internal, n_starts,
                                    thread_size, groove, square, rectangle, angle,
-                                   taper, i*pitch);
-            }
+                                   taper, i*pitch,tolerance);
+            }   
          }
-      }
+      }   
 
       // Cut to length.
       //translate ([0, 0, length/2]) {
@@ -285,16 +287,16 @@ module metric_thread_turns (diameter, pitch, length, internal, n_starts,
       // Speed-up by Odino.
       linear_extrude (length) {
          square (diameter*3, center=true);
-      }
-   }
+      }   
+   }   
 }
 
 
 // ----------------------------------------------------------------------------
 module metric_thread_turn (diameter, pitch, internal, n_starts, thread_size,
-                           groove, square, rectangle, angle, taper, z)
+                           groove, square, rectangle, angle, taper, z,tolerance)
 {
-   n_segments = segments (diameter);
+   n_segments = segments (diameter,tolerance);
    fraction_circle = 1.0/n_segments;
    for (i=[0 : n_segments-1]) {
 
@@ -305,7 +307,7 @@ module metric_thread_turn (diameter, pitch, internal, n_starts, thread_size,
             //current_diameter = diameter - taper*(z + i*n_starts*pitch*fraction_circle);
             thread_polyhedron ((diameter - taper*(z + i*n_starts*pitch*fraction_circle))/2,
                                pitch, internal, n_starts, thread_size, groove,
-                               square, rectangle, angle);
+                               square, rectangle, angle,tolerance);
          }
       }
    }
@@ -314,9 +316,9 @@ module metric_thread_turn (diameter, pitch, internal, n_starts, thread_size,
 
 // ----------------------------------------------------------------------------
 module thread_polyhedron (radius, pitch, internal, n_starts, thread_size,
-                          groove, square, rectangle, angle)
+                          groove, square, rectangle, angle,tolerance)
 {
-   n_segments = segments (radius*2);
+   n_segments = segments (radius*2,tolerance);
    fraction_circle = 1.0/n_segments;
 
    local_rectangle = rectangle ? rectangle : 1;

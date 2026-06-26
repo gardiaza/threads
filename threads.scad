@@ -1,8 +1,10 @@
 /*
+ * https://dkprojects.net/openscad-threads/threads.scad
+ *
  * ISO-standard metric threads, following this specification:
  *          http://en.wikipedia.org/wiki/ISO_metric_screw_thread
  *
- * Copyright 2022 Dan Kirshner - dan_kirshner@yahoo.com
+ * Copyright 2025 Dan Kirshner - dan_kirshner@yahoo.com
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -15,6 +17,11 @@
  *
  * See <http://www.gnu.org/licenses/>.
  *
+ * Version 3.0   2025-10-08  Include script URL in script (thanks, Volker
+ *                           Philippent).
+ * Version 2.9   2025-02-08  Add "union" in case "lazy unions" set (thanks,
+                             richard.cs@gmail.com).
+ * Version 2.8   2023-11-12  A few small speed-ups (thanks, odino@deepabyss.org).
  * Version 2.7.  2022-02-27  Increase minimum thread segments.
  * Version 2.6.  2021-05-16  Contributed patches for leadin (thanks,
                              jeffery.spirko@tamucc.edu) and aligning thread
@@ -41,7 +48,7 @@
 // Examples.
 //
 // Standard M8 x 1.
-// metric_thread (diameter=8, pitch=1, length=4);
+//metric_thread (diameter=8, pitch=1, length=4);
 
 // Square thread.
 // metric_thread (diameter=8, pitch=1, length=4, square=true);
@@ -197,7 +204,11 @@ module metric_thread (diameter=8, pitch=1, length=1, internal=false, n_starts=1,
          // Chamfer z=0 end if leadin is 2 or 3.
          if (leadin == 2 || leadin == 3) {
             difference () {
-               cylinder (r=diameter/2 + 1, h=h*h_fac1*leadfac, $fn=n_segments);
+               //cylinder (r=diameter/2 + 1, h=h*h_fac1*leadfac, $fn=n_segments);
+               // Speed-up by Odino.
+               linear_extrude (h*h_fac1*leadfac) {
+                  circle(r=diameter/2 + 1, $fn=n_segments);
+               }
 
                cylinder (r2=diameter/2, r1=diameter/2 - h*h_fac1*leadfac, h=h*h_fac1*leadfac,
                          $fn=n_segments);
@@ -208,7 +219,11 @@ module metric_thread (diameter=8, pitch=1, length=1, internal=false, n_starts=1,
          if (leadin == 1 || leadin == 2) {
             translate ([0, 0, length + 0.05 - h*h_fac1*leadfac]) {
                difference () {
-                  cylinder (r=diameter/2 + 1, h=h*h_fac1*leadfac, $fn=n_segments);
+                  //cylinder (r=diameter/2 + 1, h=h*h_fac1*leadfac, $fn=n_segments);
+                  // Speed-up by Odino.
+                  linear_extrude (h*h_fac1*leadfac) {
+                     circle(r=diameter/2 + 1, $fn=n_segments);
+                  }
 
                   cylinder (r1=tapered_diameter/2, r2=tapered_diameter/2 - h*h_fac1*leadfac, h=h*h_fac1*leadfac,
                             $fn=n_segments);
@@ -252,17 +267,24 @@ module metric_thread_turns (diameter, pitch, length, internal, n_starts,
    intersection () {
 
       // Start one below z = 0.  Gives an extra turn at each end.
-      for (i=[-1*n_starts : n_turns+1]) {
-         translate ([0, 0, i*pitch]) {
-            metric_thread_turn (diameter, pitch, internal, n_starts,
-                                thread_size, groove, square, rectangle, angle,
-                                taper, i*pitch);
+      // Union -- needed in case "lazy unions" selected in Edit > Preferences.
+      union () {
+         for (i=[-1*n_starts : n_turns+1]) {
+            translate ([0, 0, i*pitch]) {
+               metric_thread_turn (diameter, pitch, internal, n_starts,
+                                   thread_size, groove, square, rectangle, angle,
+                                   taper, i*pitch);
+            }
          }
       }
 
       // Cut to length.
-      translate ([0, 0, length/2]) {
-         cube ([diameter*3, diameter*3, length], center=true);
+      //translate ([0, 0, length/2]) {
+      //   cube ([diameter*3, diameter*3, length], center=true);
+      //}
+      // Speed-up by Odino.
+      linear_extrude (length) {
+         square (diameter*3, center=true);
       }
    }
 }
